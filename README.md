@@ -67,9 +67,3 @@ The this will execute and produce 4 output files
 
 Each result ".ply" files contains a 2d array where each row represents
 `(x,y,z,r,g,b)` where points segmented together have the same `r,g,b` value. 
-
-
-
-
-
-
