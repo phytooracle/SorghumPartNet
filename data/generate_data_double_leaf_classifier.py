@@ -1,16 +1,11 @@
-from turtle import position
-from unittest import result
+from lib2to3.pytree import LeafPattern
+import sys
+sys.path.append("/work/ariyanzarei/SorghumSegmentation/TreePartNet/utils")
+sys.path.append("/work/ariyanzarei/SorghumSegmentation/TreePartNet/pointnet2_ops_lib")
+from TreeDataset import SorghumDataset
+from load_raw_data import *
 import matplotlib.pyplot as plt
 import torch
-import os
-import pandas as pd
-import random
-import numpy as np
-from scipy.spatial.distance import cdist
-import sys
-sys.path.append("..")
-from data.load_raw_data import load_pcd_plyfile
-import open3d as o3d
 
 '''
 algorithm:
@@ -86,48 +81,11 @@ def generate_data_single_pcd(points, ground, plant, leaf, leaf_pair_sample_no = 
             single_leaf_data_points.append(points_leaf.cpu().numpy())
     
     return single_leaf_data_points,double_leaf_data_points
-
-def calculate_leaf_tip_distances(positions):
-    distances = cdist(positions,positions)
-    return distances
-
-def get_leaves_with_close_distance(distances,pcd_path,result_path,pcd_name):
-    x,y = np.where((distances>0)&(distances<0.1))
-    list_leaf_indices = list(zip(x,y))
-    unique_list_leaf_indices = []
-    for l1,l2 in list_leaf_indices:
-        if (l2,l1) not in unique_list_leaf_indices and (l1,l2) not in unique_list_leaf_indices and l1!=0 and l2!=0:
-            unique_list_leaf_indices.append((l1,l2))
-    
-    pcd = load_pcd_plyfile(os.path.join(pcd_path,pcd_name+".ply"))
-    leaf_ind = pcd['leaf_index']
-    points = pcd['points']
-    plant_ind = pcd['is_focal_plant']
-
-    for l1,l2 in unique_list_leaf_indices:
-        new_points = points[(leaf_ind==l1)|(leaf_ind==l2)&(plant_ind==1)]
-        new_pcd = o3d.geometry.PointCloud()
-        new_pcd.points = o3d.utility.Vector3dVector(new_points)    
-        o3d.io.write_point_cloud(os.path.join(result_path,f"test_{l1}_{l2}_{pcd_name}.ply"),new_pcd)
-
+            
 def generate_data(dataset_path):
-    pcd_path = os.path.join(dataset_path,"PointCloud")
-    csv_path = os.path.join(dataset_path,"CSV")
+    ds = SorghumDataset(dataset_path)
+    points, ground, semantic, plant, leaf = ds[4]
+    single,double = generate_data_single_pcd(points,ground,plant,leaf)
+    print(len(single),len(double))
 
-    pcd_files = os.listdir(pcd_path)
-    for pcd_f in pcd_files:
-        csv = pd.read_csv(os.path.join(csv_path,pcd_f.replace("ply","csv")))
-        x = csv["tip_pos_x"].to_numpy()
-        y = csv["tip_pos_y"].to_numpy()
-        z = csv["tip_pos_z"].to_numpy()
-
-        positions = np.stack((x,y,z),axis=-1)
-        distances = calculate_leaf_tip_distances(positions)
-        
-        get_leaves_with_close_distance(distances,pcd_path,"/space/ariyanzarei/sorghum_segmentation/results",pcd_f.replace(".ply",""))
-
-    # points, ground, semantic, plant, leaf = ds[4]
-    # single,double = generate_data_single_pcd(points,ground,plant,leaf)
-    # print(len(single),len(double))
-
-generate_data("/space/ariyanzarei/sorghum_segmentation/dataset/2022-05-06")
+generate_data("/space/ariyanzarei/sorghum_segmentation/dataset/2022-03-10/sorghum__labeled_train.hdf5")
