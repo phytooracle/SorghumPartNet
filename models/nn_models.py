@@ -39,6 +39,8 @@ class SorghumPartNetSemantic(pl.LightningModule):
         # Normalization (min max)
         mins,_ = torch.min(xyz,axis=1)
         maxs,_ = torch.max(xyz,axis=1)
+        mins = mins.unsqueeze(1)
+        maxs = maxs.unsqueeze(1)
         xyz = (xyz-mins)/(maxs-mins) - 0.5
 
         # Semantic Label Prediction
@@ -177,6 +179,8 @@ class SorghumPartNetInstance(pl.LightningModule):
         # Normalization (min max)
         mins,_ = torch.min(xyz,axis=1)
         maxs,_ = torch.max(xyz,axis=1)
+        mins = mins.unsqueeze(1)
+        maxs = maxs.unsqueeze(1)
         xyz = (xyz-mins)/(maxs-mins) - 0.5
 
         # Instance 
