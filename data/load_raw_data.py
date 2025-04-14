@@ -162,6 +162,11 @@ def load_pcd_plyfile_new_approach(path, is_instance, down_sample_n=8000):
 
 
 def load_ply_file_points(path, n_points=8000, full_points=50000):
+    '''
+    points : np array with min (full_points, points.shape[0]) points
+    down_sampled_points : returns np array with min (n_points, points.shape[0]) points
+    normals : estimated normals, same size as down_sampled_points
+    '''
     pcd = o3d.io.read_point_cloud(path)
 
     # R = pcd.get_rotation_matrix_from_xyz((-np.pi / 2, 0, 0))
@@ -173,7 +178,6 @@ def load_ply_file_points(path, n_points=8000, full_points=50000):
     normals = np.asarray(pcd.normals)
 
     points = np.array(pcd.points)
-    # points[:, 0], points[:, 1], points[:, 2] = points[:, 2], points[:, 0], points[:, 1]
 
     first_down_indexes = random.sample(
         np.arange(0, points.shape[0]).tolist(),
