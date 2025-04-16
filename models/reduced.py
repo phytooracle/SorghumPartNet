@@ -31,9 +31,6 @@ from sklearn.cluster import DBSCAN
 from data.utils import distinct_colors
 from models.modules import KNNSpaceRegularizer
 
-device_name = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-device = torch.device(device_name)
-
 
 def knn(x, k):
     inner = -2 * torch.matmul(x.transpose(2, 1), x)
@@ -43,7 +40,13 @@ def knn(x, k):
     return idx
 
 
-def get_graph_feature(x, k=20, idx=None, dim9=False, device_name=None):
+def get_graph_feature(
+        x,
+        k=20,
+        idx=None,
+        dim9=False,
+        device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    ):
     batch_size = x.size(0)
     num_points = x.size(2)
 
@@ -54,7 +57,6 @@ def get_graph_feature(x, k=20, idx=None, dim9=False, device_name=None):
         else:
             idx = knn(x[:, 6:], k=k)
     
-    device = torch.device(device_name)
     idx_base = torch.arange(0, batch_size, device=device).view(-1, 1, 1) * num_points
 
     idx = idx + idx_base
@@ -76,10 +78,10 @@ def get_graph_feature(x, k=20, idx=None, dim9=False, device_name=None):
 
 
 class DGCNNFeatureSpace(nn.Module):
-    def __init__(self, args, input_dim=3):
+    def __init__(self, args, input_dim=3, device=None):
         super(DGCNNFeatureSpace, self).__init__()
+        self._device = device
         self.args = args
-        self.device_name = device_name
         self.k = args.k
 
         self.bn1 = nn.BatchNorm2d(64)
@@ -112,7 +114,7 @@ class DGCNNFeatureSpace(nn.Module):
         x = x.transpose(1, 2)
 
         x = get_graph_feature(
-            x, k=self.k, device_name=self.device_name
+            x, k=self.k, device=self._device
         )  # (batch_size, 3, num_points) -> (batch_size, 3*2, num_points, k)
         x = self.conv1(
             x
@@ -122,7 +124,7 @@ class DGCNNFeatureSpace(nn.Module):
         ]  # (batch_size, 64, num_points, k) -> (batch_size, 64, num_points)
 
         x = get_graph_feature(
-            x1, k=self.k, device_name=self.device_name
+            x1, k=self.k, device=self._device
         )  # (batch_size, 64, num_points) -> (batch_size, 64*2, num_points, k)
         x = self.conv2(
             x
@@ -132,7 +134,7 @@ class DGCNNFeatureSpace(nn.Module):
         ]  # (batch_size, 64, num_points, k) -> (batch_size, 64, num_points)
 
         x = get_graph_feature(
-            x2, k=self.k, device_name=self.device_name
+            x2, k=self.k, device=self._device
         )  # (batch_size, 64, num_points) -> (batch_size, 64*2, num_points, k)
         x = self.conv3(
             x
@@ -142,7 +144,7 @@ class DGCNNFeatureSpace(nn.Module):
         ]  # (batch_size, 128, num_points, k) -> (batch_size, 128, num_points)
 
         x = get_graph_feature(
-            x3, k=self.k, device_name=self.device_name
+            x3, k=self.k, device=self._device
         )  # (batch_size, 128, num_points) -> (batch_size, 128*2, num_points, k)
         x = self.conv4(
             x
@@ -155,9 +157,9 @@ class DGCNNFeatureSpace(nn.Module):
 
 
 class DGCNNSemanticSegmentor(nn.Module):
-    def __init__(self, k, output_dim=3, input_dim=3):
+    def __init__(self, k, output_dim=3, input_dim=3, device=None):
         super(DGCNNSemanticSegmentor, self).__init__()
-        self.device_name = device_name
+        self._device = device
         self.k = k
 
         self.bn1 = nn.BatchNorm2d(64)
@@ -190,7 +192,7 @@ class DGCNNSemanticSegmentor(nn.Module):
         x = x.transpose(1, 2)
 
         x = get_graph_feature(
-            x, k=self.k, device_name=self.device_name
+            x, k=self.k, device=self._device
         )  # (batch_size, 3, num_points) -> (batch_size, 3*2, num_points, k)
         x = self.conv1(
             x
@@ -200,7 +202,7 @@ class DGCNNSemanticSegmentor(nn.Module):
         ]  # (batch_size, 64, num_points, k) -> (batch_size, 64, num_points)
 
         x = get_graph_feature(
-            x1, k=self.k, device_name=self.device_name
+            x1, k=self.k, device=self._device
         )  # (batch_size, 64, num_points) -> (batch_size, 64*2, num_points, k)
         x = self.conv2(
             x
@@ -210,7 +212,7 @@ class DGCNNSemanticSegmentor(nn.Module):
         ]  # (batch_size, 64, num_points, k) -> (batch_size, 64, num_points)
 
         x = get_graph_feature(
-            x2, k=self.k, device_name=self.device_name
+            x2, k=self.k, device=self._device
         )  # (batch_size, 64, num_points) -> (batch_size, 64*2, num_points, k)
         x = self.conv3(
             x
@@ -220,7 +222,7 @@ class DGCNNSemanticSegmentor(nn.Module):
         ]  # (batch_size, 128, num_points, k) -> (batch_size, 128, num_points)
 
         x = get_graph_feature(
-            x3, k=self.k, device_name=self.device_name
+            x3, k=self.k, device=self._device
         )  # (batch_size, 128, num_points) -> (batch_size, 128*2, num_points, k)
         x = self.conv4(
             x
@@ -233,7 +235,7 @@ class DGCNNSemanticSegmentor(nn.Module):
 
 
 class SorghumPartNetSemantic(pl.LightningModule):
-    def __init__(self, hparams, debug=False):
+    def __init__(self, hparams, debug=False, device=None):
         """
         Parameters
         ----------
@@ -241,6 +243,7 @@ class SorghumPartNetSemantic(pl.LightningModule):
         """
         super(SorghumPartNetSemantic, self).__init__()
 
+        self._device = device
         self.is_debug = debug
         self.hparams.update(hparams)
         self.lr_clip = 1e-5
@@ -251,6 +254,7 @@ class SorghumPartNetSemantic(pl.LightningModule):
             input_dim=(
                 3 if "input_dim" not in self.hparams else self.hparams["input_dim"]
             ),
+            device=self._device
         ).double()
 
         self.save_hyperparameters()
@@ -422,11 +426,8 @@ class SorghumPartNetSemantic(pl.LightningModule):
     def validation_real_data(self):
         real_data_path = self.hparams["real_data"]
 
-        # device_name = "cpu"
-        # device = torch.device(device_name)
-
-        semantic_model = self.to(device)
-        semantic_model.DGCNN_semantic_segmentor.device = device
+        semantic_model = self.to(self._device)
+        semantic_model.DGCNN_semantic_segmentor.device = self._device
 
         files = os.listdir(real_data_path)
         accs = []
@@ -435,17 +436,17 @@ class SorghumPartNetSemantic(pl.LightningModule):
         for file in files:
             path = os.path.join(real_data_path, file)
             points, _, semantic_labels = load_real_ply_with_labels(path)
-            points = torch.tensor(points, dtype=torch.float64).to(device)
+            points = torch.tensor(points, dtype=torch.float64).to(self._device)
             if (
                 "use_normals" in semantic_model.hparams
                 and semantic_model.hparams["use_normals"]
             ):
                 pred_semantic_label = semantic_model(
-                    torch.unsqueeze(points, dim=0).to(device)
+                    torch.unsqueeze(points, dim=0).to(self._device)
                 )
             else:
                 pred_semantic_label = semantic_model(
-                    torch.unsqueeze(points[:, :3], dim=0).to(device)
+                    torch.unsqueeze(points[:, :3], dim=0).to(self._device)
                 )
 
             pred_semantic_label = F.softmax(pred_semantic_label, dim=1)
@@ -504,14 +505,9 @@ class SorghumPartNetSemantic(pl.LightningModule):
             "test_real_acc", torch.mean(accs), self.trainer.current_epoch
         )
 
-        # semantic_model = self.to(torch.device("cuda"))
-        # semantic_model.DGCNN_semantic_segmentor.device = "cuda"
-        semantic_model = self.to(device)
-        semantic_model.DGCNN_semantic_segmentor.device_name = device_name
-
 
 class SorghumPartNetInstance(pl.LightningModule):
-    def __init__(self, hparams, debug=False):
+    def __init__(self, hparams, debug=False, device=None):
         """
         Parameters
         ----------
@@ -519,6 +515,7 @@ class SorghumPartNetInstance(pl.LightningModule):
         """
         super(SorghumPartNetInstance, self).__init__()
 
+        self._device = device
         self.is_debug = debug
         self.hparams.update(hparams)
         self.lr_clip = 1e-5
@@ -531,7 +528,9 @@ class SorghumPartNetInstance(pl.LightningModule):
             args = MyStruct(k=15)
 
         self.DGCNN_feature_space = DGCNNFeatureSpace(
-            args, (3 if "input_dim" not in self.hparams else self.hparams["input_dim"])
+            args,
+            (3 if "input_dim" not in self.hparams else self.hparams["input_dim"]),
+            device=self._device
         ).double()
 
         if "loss_fn" in self.hparams and self.hparams["loss_fn"] == "knn_space_mean":
@@ -568,7 +567,7 @@ class SorghumPartNetInstance(pl.LightningModule):
         # Instance
         dgcnn_features = self.DGCNN_feature_space(xyz)
 
-        # # Take mean of the k nearest neighbors
+        # Take mean of the k nearest neighbors
         if self.space_reqularizer_module is not None:
             dgcnn_features = self.space_reqularizer_module(xyz, dgcnn_features)
 
@@ -739,11 +738,8 @@ class SorghumPartNetInstance(pl.LightningModule):
     def validation_real_data(self):
         real_data_path = self.hparams["real_data"]
 
-        # device_name = "cpu"
-        # device = torch.device()
-
-        instance_model = self.to(device)
-        instance_model.DGCNN_feature_space.device_name = device_name
+        instance_model = self.to(self._device)
+        # instance_model.DGCNN_feature_space.device_name = device_name
 
         files = os.listdir(real_data_path)
         accs = []
@@ -760,17 +756,17 @@ class SorghumPartNetInstance(pl.LightningModule):
             points = main_points[semantic_labels == 1]
             instance_labels = instance_labels[semantic_labels == 1]
 
-            points = torch.tensor(points, dtype=torch.float64).to(device)
+            points = torch.tensor(points, dtype=torch.float64).to(self._device)
             if (
                 "use_normals" in instance_model.hparams
                 and instance_model.hparams["use_normals"]
             ):
                 pred_instance_features = instance_model(
-                    torch.unsqueeze(points, dim=0).to(device)
+                    torch.unsqueeze(points, dim=0).to(self._device)
                 )
             else:
                 pred_instance_features = instance_model(
-                    torch.unsqueeze(points[:, :3], dim=0).to(device)
+                    torch.unsqueeze(points[:, :3], dim=0).to(self._device)
                 )
 
             pred_instance_features = (
@@ -854,9 +850,3 @@ class SorghumPartNetInstance(pl.LightningModule):
             self.logger.experiment.add_scalar(
                 key, tensorboard_logs[key], self.trainer.current_epoch
             )
-
-        # instance_model = self.to(torch.device("cuda"))
-        # instance_model.DGCNN_feature_space.device = "cuda"
-        instance_model = self.to(device)
-        instance_model.DGCNN_feature_space.device_name = device_name
-

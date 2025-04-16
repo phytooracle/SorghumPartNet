@@ -22,14 +22,7 @@ from scipy import stats
 import argparse
 
 
-args = None
 
-
-logging.basicConfig(
-    stream=sys.stderr,
-    level=logging.ERROR,
-    format='%(asctime)s - %(levelname)s - %(message)s'
-)
 
 
 def get_args():
@@ -212,41 +205,55 @@ def predict_downsampled(points, semantic_model, instance_model, method, dist=5):
 
 
 def pred_full_size(
-    full_points, downsampled_points, downsampled_semantic, downsampled_instance, k=10
+    full_points, downsampled_points, downsampled_semantic, downsampled_instance, device, k=10
 ):
 
-    distances = cdist(full_points, downsampled_points)
-    full_ind, down_ind = np.where(distances == 0)
+    # full_points = torch.tensor(full_points, device=device)
+    # downsampled_points = torch.tensor(downsampled_points, device=device)
+    downsampled_semantic = torch.tensor(downsampled_semantic, device=device)
+    downsampled_instance = torch.tensor(downsampled_instance, device=device)
 
-    semantic_full = np.ones((full_points.shape[0])).astype("uint8") * -1
+    distances = torch.cdist(full_points, downsampled_points)
+    full_ind, down_ind = torch.where(distances == 0)
+
+    semantic_full = torch.full((full_points.shape[0],), -1, dtype=downsampled_semantic.dtype, device=device)
     semantic_full[full_ind] = downsampled_semantic[down_ind]
 
     for i in range(full_points.shape[0]):
-        sorted_distances = np.argsort(distances[i])
+        sorted_distances, sorted_indices = torch.sort(distances[i])
         if semantic_full[i] == -1:
-            mode = stats.mode(downsampled_semantic[sorted_distances[:k]])[0]
+            nearest_labels = downsampled_semantic[sorted_indices[:k]].view(-1)
+            labels, counts = torch.unique(nearest_labels, return_counts=True)
+            mode = labels[torch.argmax(counts)]
             semantic_full[i] = mode
 
     semantic_ply = create_ply_pcd_from_points_with_labels(
-        full_points, semantic_full, is_semantic=True
+        full_points.cpu().numpy(), semantic_full.cpu().numpy(), is_semantic=True
     )
 
     downsampled_focal_points = downsampled_points[downsampled_semantic == 1]
     focal_points = full_points[semantic_full == 1]
 
-    distances = cdist(focal_points, downsampled_focal_points)
-    full_ind, down_ind = np.where(distances == 0)
+    distances = torch.cdist(focal_points, downsampled_focal_points)
+    full_ind, down_ind = torch.where(distances == 0)
 
-    instance_full = np.ones((focal_points.shape[0])).astype("uint8") * -1
+    instance_full = torch.full((focal_points.shape[0],), -1, dtype=downsampled_instance.dtype, device=device)
     instance_full[full_ind] = downsampled_instance[down_ind]
 
     for i in range(focal_points.shape[0]):
-        sorted_distances = np.argsort(distances[i])
+        sorted_distances, sorted_indices = torch.sort(distances[i])
         if instance_full[i] == -1:
-            mode = stats.mode(downsampled_instance[sorted_distances[:k]])[0]
+            nearest_labels = downsampled_instance[sorted_indices[:k]]
+            labels, counts = torch.unique(nearest_labels, return_counts=True)
+            mode = labels[torch.argmax(counts)]
             instance_full[i] = mode
 
-    instance_ply = create_ply_pcd_from_points_with_labels(focal_points, instance_full)
+    instance_ply = create_ply_pcd_from_points_with_labels(
+        focal_points.cpu().numpy(),
+        instance_full.cpu().numpy()
+    )
+
+    # TODO open3d tensor io can probably save directly from the tensors. not sure if it's faster.
 
     return semantic_ply, instance_ply
 
@@ -257,7 +264,7 @@ def save_predicted(ply_pcd, path):
 
 def load_model_chkpoint(model, path, device):
 
-    model = eval(model).load_from_checkpoint(path)
+    model = eval(model).load_from_checkpoint(path, device=device)
     model = model.to(device)
     # print(model.hparams)
     # print(model.state_dict()['scale'])
@@ -266,7 +273,7 @@ def load_model_chkpoint(model, path, device):
     return model
 
 
-def load_model(model_name, version, device):
+def load_model(args, model_name, version, device):
     if version == -1:
         versions = os.listdir(
             os.path.join(f'{args.model}', model_name)
@@ -278,26 +285,33 @@ def load_model(model_name, version, device):
     print(f"{model_name} using version ", version, " ", path)
 
     model = load_model_chkpoint(model_name, os.path.join(path_all_checkpoints, path), device)
-    print('hyperparams: ', model.hparams)
     return model
 
 
-def worker(cpu_id, device, ids):
+def worker(args, cpu_id, device, ids):
     '''
     This is where the cpu worker starts.
     '''
+    logging.basicConfig(
+        # stream=sys.stderr,
+        filename=f'output-{cpu_id}.log',
+        level=logging.ERROR,
+        format='%(asctime)s - %(levelname)s - %(message)s'
+    )
 
-    semantic_model = load_model("SorghumPartNetSemantic", args.semantic_version, device).double()
-    instance_model = load_model("SorghumPartNetInstance", args.instance_version, device).double()
+    print(f'hello from worker {cpu_id} using {device}!')
+
+    semantic_model = load_model(args, "SorghumPartNetSemantic", args.semantic_version, device).double()
+    instance_model = load_model(args, "SorghumPartNetInstance", args.instance_version, device).double()
 
     times = []
 
-    for folder in tqdm(ids, file=sys.stdout):
+    for id in tqdm(ids, file=sys.stdout):
 
         if args.time:
             time_per_pointcloud = time.time()
 
-        base_path = os.path.join(args.path, folder)
+        base_path = os.path.join(args.path, id)
         path_to_pcd = os.path.join(base_path, 'combined_multiway_registered.ply')
 
         # check if already processed
@@ -329,7 +343,7 @@ def worker(cpu_id, device, ids):
 
             # print(':: Running pred_full_size...')
             semantic_pcd, instance_pcd = pred_full_size(
-                points_full, points[:, :3], downsampled_semantics, downsampled_instance
+                points_full, points[:, :3], downsampled_semantics, downsampled_instance, device
             )
         except Exception as error:
             tb = traceback.format_exc()
@@ -367,12 +381,11 @@ def worker(cpu_id, device, ids):
 
         num_in_july = len(os.listdir(os.path.expanduser('~/xdisk/vrbio/2020-07-30/segmentation_pointclouds')))
         num_in_aug = len(os.listdir(os.path.expanduser('~/xdisk/vrbio/2020-08-03/segmentation_pointclouds')))
-        print(f'estimated time for july: {num_in_july * mean}')
-        print(f'estimated time for aug: {num_in_aug * mean}')
+        print(f'estimated time for july: {num_in_july * mean/360} hrs')
+        print(f'estimated time for aug: {num_in_aug * mean/360} hrs')
 
 
-def main():
-    global args
+if __name__ == "__main__":
     args = get_args()
 
     if not torch.cuda.is_available():
@@ -383,21 +396,23 @@ def main():
 
     ids = np.asarray(os.listdir(args.path))
     split_ids = np.split(ids, num_gpus)
-    print(split_ids)
-    print(split_ids[0].shape)
 
     assignments  = [(i, torch.device(f'cuda:{i}'), split_ids[i]) for i in range(num_gpus)]
     
-    procs = [mp.Process(target=worker, args=(cpu_id, device, ids)) for cpu_id, device, ids in assignments]
+    procs = [mp.Process(target=worker, args=(args, cpu_id, device, ids)) for cpu_id, device, ids in assignments]
+    mp.set_start_method('spawn')
 
     for proc in procs:
         proc.start()
     
-    for proc in procs:
-        proc.join()
-    
+    try:
+        for proc in procs:
+            proc.join()  # Wait for all processes to finish
+    except KeyboardInterrupt:
+        print("Main program received interrupt. Terminating workers...")
+        for proc in procs:
+            proc.terminate()  # Forcefully terminate processes
+        for proc in procs:
+            proc.join()  # Ensure processes are cleaned up
+
     print('multiprocessing finished')
-
-
-if __name__ == "__main__":
-    main()
