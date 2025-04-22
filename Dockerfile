@@ -37,6 +37,13 @@ RUN apt-get install -y wget \
                        libxrender-dev \
                        libgl1-mesa-dev
 
+# Install CUDA Toolkit
+RUN wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/cuda-ubuntu1804.pin && \
+    mv cuda-ubuntu1804.pin /etc/apt/preferences.d/cuda-repository-pin-600 && \
+    apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/7fa2af80.pub && \
+    add-apt-repository "deb http://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/ /" && \
+    apt-get update && apt-get install -y cuda-toolkit-11-3                       
+
 # Download and extract Python sources
 RUN cd /opt \
     && wget https://www.python.org/ftp/python/${PYTHON_VERSION}/Python-${PYTHON_VERSION}.tgz \                                              
