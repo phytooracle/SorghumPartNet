@@ -6,7 +6,7 @@ COPY . /opt
 
 USER root
 ARG DEBIAN_FRONTEND=noninteractive
-ARG PYTHON_VERSION=3.9.10
+ARG PYTHON_VERSION=3.7.15
 RUN apt-get -o Acquire::Check-Valid-Until=false -o Acquire::Check-Date=false update -y
 
 RUN apt-get update 
@@ -51,9 +51,9 @@ RUN cd /opt/Python-${PYTHON_VERSION} \
 RUN apt-get update
 RUN pip3 install --upgrade pip
 RUN pip3 install --upgrade wheel
-RUN pip3 install -r /opt/requirements.txt
+RUN pip3 install -r /opt/requirements.txt --no-cache-dir
 RUN apt-get install -y locales && locale-gen en_US.UTF-8
 ENV LANG='en_US.UTF-8' LANGUAGE='en_US:en' LC_ALL='en_US.UTF-8'
-ENV PYTHONPATH=/usr/local/lib/python3.9/site-packages:$PYTHONPATH
+ENV PYTHONPATH=/usr/local/lib/python3.7/site-packages:$PYTHONPATH
 
-ENTRYPOINT [ "/usr/local/bin/python3.9", "/opt/hpc.py" ]
+ENTRYPOINT [ "/usr/local/bin/python3.7", "/opt/hpc.py" ]
