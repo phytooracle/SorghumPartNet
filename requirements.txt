@@ -8,3 +8,4 @@ torchsummary==1.5.1
 tqdm==4.67.1
 numpy==1.21.5
 scikit-learn==1.6.1
+torchvision==0.21.0
