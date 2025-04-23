@@ -62,6 +62,7 @@ RUN cd /opt/Python-${PYTHON_VERSION} \
     && rm /opt/Python-${PYTHON_VERSION}.tgz /opt/Python-${PYTHON_VERSION} -rf
 
 RUN pip3 install torch==1.10.1+cu113 torchvision==0.11.2+cu113 torchaudio==0.10.1+cu113 --index-url https://download.pytorch.org/whl/cu113
+RUN pip3 install --upgrade setuptools
 RUN pip3 install -r /opt/requirements.txt --no-cache-dir
 RUN apt-get install -y locales && locale-gen en_US.UTF-8
 ENV LANG='en_US.UTF-8' LANGUAGE='en_US:en' LC_ALL='en_US.UTF-8'
