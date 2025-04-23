@@ -6,7 +6,7 @@ COPY . /opt
 
 USER root
 ARG DEBIAN_FRONTEND=noninteractive
-ARG PYTHON_VERSION=3.7.15
+ARG PYTHON_VERSION=3.8.20
 RUN apt-get -o Acquire::Check-Valid-Until=false -o Acquire::Check-Date=false update -y
 
 RUN apt-get update 
@@ -35,15 +35,20 @@ RUN apt-get install -y wget \
                        libsm6 \
                        libxext6 \
                        libxrender-dev \
-                       libgl1-mesa-dev
+                       libgl1-mesa-dev   
 
-# Add the updated NVIDIA CUDA keyring
+# Download and install the CUDA Toolkit in /opt
 RUN wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/cuda-keyring_1.0-1_all.deb && \
     dpkg -i cuda-keyring_1.0-1_all.deb && \
-    apt-get update
+    apt-get update && \
+    wget https://developer.download.nvidia.com/compute/cuda/11.3.1/local_installers/cuda_11.3.1_465.19.01_linux.run -P /opt && \
+    chmod +x /opt/cuda_11.3.1_465.19.01_linux.run && \
+    /opt/cuda_11.3.1_465.19.01_linux.run --silent --toolkit --override && \
+    rm /opt/cuda_11.3.1_465.19.01_linux.run
 
-# Install the CUDA Toolkit
-RUN apt-get install -y cuda-toolkit-11-3                     
+# Set environment variables for CUDA
+ENV PATH=/opt/cuda/bin:$PATH
+ENV LD_LIBRARY_PATH=/opt/cuda/lib64:$LD_LIBRARY_PATH
 
 # Download and extract Python sources
 RUN cd /opt \
@@ -56,13 +61,11 @@ RUN cd /opt/Python-${PYTHON_VERSION} \
     && make install \
     && rm /opt/Python-${PYTHON_VERSION}.tgz /opt/Python-${PYTHON_VERSION} -rf
 
-RUN apt-get update
-RUN pip3 install --upgrade pip
-RUN pip3 install --upgrade wheel
-RUN pip3 install torch==1.11.0+cu113 torchvision==0.12.0+cu113 torchaudio==0.11.0+cu113 --index-url https://download.pytorch.org/whl/cu113
+RUN pip3 install torch==1.10.1+cu113 torchvision==0.11.2+cu113 torchaudio==0.10.1+cu113 --index-url https://download.pytorch.org/whl/cu113
 RUN pip3 install -r /opt/requirements.txt --no-cache-dir
 RUN apt-get install -y locales && locale-gen en_US.UTF-8
 ENV LANG='en_US.UTF-8' LANGUAGE='en_US:en' LC_ALL='en_US.UTF-8'
-ENV PYTHONPATH=/usr/local/lib/python3.7/site-packages:$PYTHONPATH
+ENV PYTHONPATH=/usr/local/lib/python3.8/site-packages:$PYTHONPATH
 
-ENTRYPOINT [ "/usr/local/bin/python3.7", "/opt/hpc.py" ]
+
+ENTRYPOINT [ "/usr/local/bin/python3.8", "/opt/hpc.py" ]
