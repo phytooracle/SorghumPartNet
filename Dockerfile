@@ -19,7 +19,7 @@ RUN pip3 install torch==1.10.1+cu113 torchvision==0.11.2+cu113 torchaudio==0.10.
 
 # Install additional packages from seg.yml
 COPY seg.yml /tmp/seg.yml
-RUN pip3 install cloudpickle==2.2.0 deprecation==2.1.0 google-auth==1.35.0 hyperopt==0.2.7 ipympl==0.9.2 jupyter-packaging==0.12.0 mpmath==1.2.1 networkx==2.8.8 ninja==1.10.2.3 py4j==0.10.9.7 pyquaternion==0.9.9 readline==6.2.4.1 setuptools==65.3.0 sympy==1.9 tensorboard==2.10.1 tensorboard-data-server==0.6.1 tomlkit==0.11.4 torch-summary==1.4.5 torch-tb-profiler==0.3.1 torchcluster==0.1.4
+RUN pip3 install cloudpickle==2.2.0 deprecation==2.1.0 google-auth==1.35.0 hyperopt==0.2.7 ipympl==0.9.2 jupyter-packaging==0.12.0 mpmath==1.2.1 networkx==2.8.8 ninja==1.10.2.3 py4j==0.10.9.7 pyquaternion==0.9.9 setuptools==65.3.0 sympy==1.9 tensorboard==2.10.1 tensorboard-data-server==0.6.1 tomlkit==0.11.4 torch-summary==1.4.5 torch-tb-profiler==0.3.1 torchcluster==0.1.4 open3d==0.15.1
 
 # Set the working directory
 WORKDIR /opt
