@@ -318,8 +318,8 @@ def worker(args, cpu_id, device, ids):
         path_to_pcd = os.path.join(base_path, "combined_multiway_registered.ply")
 
         # check if already processed
-        if len(os.listdir(base_path)) > 1:
-            continue
+        # if len(os.listdir(base_path)) > 1:
+        #     continue
 
         # print(f':: Opening {path_to_pcd}')
         try:
