@@ -6,7 +6,7 @@ import torch.nn as nn
 import torch.optim.lr_scheduler as lr_sched
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
-from models.datasets import (
+from data.datasets import (
     SorghumDataset,
     SorghumDatasetWithNormals,
     TreePartNetDataset,
@@ -45,19 +45,20 @@ def get_graph_feature(
         k=20,
         idx=None,
         dim9=False,
-        device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    ):
+        device=torch.device("cuda" if torch.cuda.is_available() else "cpu")):
     batch_size = x.size(0)
     num_points = x.size(2)
 
     x = x.view(batch_size, -1, num_points)
     if idx is None:
-        if dim9 == False:
+        if dim9 is False:
             idx = knn(x, k=k)  # (batch_size, num_points, k)
         else:
             idx = knn(x[:, 6:], k=k)
-    
-    idx_base = torch.arange(0, batch_size, device=device).view(-1, 1, 1) * num_points
+
+    idx_base = torch.arange(
+        0, batch_size, device=device
+    ).view(-1, 1, 1) * num_points
 
     idx = idx + idx_base
 
@@ -67,12 +68,13 @@ def get_graph_feature(
 
     x = x.transpose(
         2, 1
-    ).contiguous()  # (batch_size, num_points, num_dims)  -> (batch_size*num_points, num_dims) #   batch_size * num_points * k + range(0, batch_size*num_points)
+    ).contiguous()
     feature = x.view(batch_size * num_points, -1)[idx, :]
     feature = feature.view(batch_size, num_points, k, num_dims)
     x = x.view(batch_size, num_points, 1, num_dims).repeat(1, 1, k, 1)
 
-    feature = torch.cat((feature - x, x), dim=3).permute(0, 3, 1, 2).contiguous()
+    feature = torch.cat((feature - x, x),
+                        dim=3).permute(0, 3, 1, 2).contiguous()
 
     return feature  # (batch_size, 2*num_dims, num_points, k)
 
@@ -113,45 +115,21 @@ class DGCNNFeatureSpace(nn.Module):
     def forward(self, x):
         x = x.transpose(1, 2)
 
-        x = get_graph_feature(
-            x, k=self.k, device=self._device
-        )  # (batch_size, 3, num_points) -> (batch_size, 3*2, num_points, k)
-        x = self.conv1(
-            x
-        )  # (batch_size, 3*2, num_points, k) -> (batch_size, 64, num_points, k)
-        x1 = x.max(dim=-1, keepdim=False)[
-            0
-        ]  # (batch_size, 64, num_points, k) -> (batch_size, 64, num_points)
+        x = get_graph_feature(x, k=self.k, device=self._device)
+        x = self.conv1(x)
+        x1 = x.max(dim=-1, keepdim=False)[0]
 
-        x = get_graph_feature(
-            x1, k=self.k, device=self._device
-        )  # (batch_size, 64, num_points) -> (batch_size, 64*2, num_points, k)
-        x = self.conv2(
-            x
-        )  # (batch_size, 64*2, num_points, k) -> (batch_size, 64, num_points, k)
-        x2 = x.max(dim=-1, keepdim=False)[
-            0
-        ]  # (batch_size, 64, num_points, k) -> (batch_size, 64, num_points)
+        x = get_graph_feature(x1, k=self.k, device=self._device)
+        x = self.conv2(x)
+        x2 = x.max(dim=-1, keepdim=False)[0]
 
-        x = get_graph_feature(
-            x2, k=self.k, device=self._device
-        )  # (batch_size, 64, num_points) -> (batch_size, 64*2, num_points, k)
-        x = self.conv3(
-            x
-        )  # (batch_size, 64*2, num_points, k) -> (batch_size, 128, num_points, k)
-        x3 = x.max(dim=-1, keepdim=False)[
-            0
-        ]  # (batch_size, 128, num_points, k) -> (batch_size, 128, num_points)
+        x = get_graph_feature(x2, k=self.k, device=self._device)
+        x = self.conv3(x)
+        x3 = x.max(dim=-1, keepdim=False)[0]
 
-        x = get_graph_feature(
-            x3, k=self.k, device=self._device
-        )  # (batch_size, 128, num_points) -> (batch_size, 128*2, num_points, k)
-        x = self.conv4(
-            x
-        )  # (batch_size, 128*2, num_points, k) -> (batch_size, 256, num_points, k)
-        x4 = x.max(dim=-1, keepdim=False)[
-            0
-        ]  # (batch_size, 256, num_points, k) -> (batch_size, 256, num_points)
+        x = get_graph_feature(x3, k=self.k, device=self._device)
+        x = self.conv4(x)
+        x4 = x.max(dim=-1, keepdim=False)[0]
 
         return x4.transpose(1, 2)
 
@@ -191,45 +169,21 @@ class DGCNNSemanticSegmentor(nn.Module):
     def forward(self, x):
         x = x.transpose(1, 2)
 
-        x = get_graph_feature(
-            x, k=self.k, device=self._device
-        )  # (batch_size, 3, num_points) -> (batch_size, 3*2, num_points, k)
-        x = self.conv1(
-            x
-        )  # (batch_size, 3*2, num_points, k) -> (batch_size, 64, num_points, k)
-        x1 = x.max(dim=-1, keepdim=False)[
-            0
-        ]  # (batch_size, 64, num_points, k) -> (batch_size, 64, num_points)
+        x = get_graph_feature(x, k=self.k, device=self._device)
+        x = self.conv1(x)
+        x1 = x.max(dim=-1, keepdim=False)[0]
 
-        x = get_graph_feature(
-            x1, k=self.k, device=self._device
-        )  # (batch_size, 64, num_points) -> (batch_size, 64*2, num_points, k)
-        x = self.conv2(
-            x
-        )  # (batch_size, 64*2, num_points, k) -> (batch_size, 64, num_points, k)
-        x2 = x.max(dim=-1, keepdim=False)[
-            0
-        ]  # (batch_size, 64, num_points, k) -> (batch_size, 64, num_points)
+        x = get_graph_feature(x1, k=self.k, device=self._device)
+        x = self.conv2(x)
+        x2 = x.max(dim=-1, keepdim=False)[0]
 
-        x = get_graph_feature(
-            x2, k=self.k, device=self._device
-        )  # (batch_size, 64, num_points) -> (batch_size, 64*2, num_points, k)
-        x = self.conv3(
-            x
-        )  # (batch_size, 64*2, num_points, k) -> (batch_size, 128, num_points, k)
-        x3 = x.max(dim=-1, keepdim=False)[
-            0
-        ]  # (batch_size, 128, num_points, k) -> (batch_size, 128, num_points)
+        x = get_graph_feature(x2, k=self.k, device=self._device)
+        x = self.conv3(x)
+        x3 = x.max(dim=-1, keepdim=False)[0]
 
-        x = get_graph_feature(
-            x3, k=self.k, device=self._device
-        )  # (batch_size, 128, num_points) -> (batch_size, 128*2, num_points, k)
-        x = self.conv4(
-            x
-        )  # (batch_size, 128*2, num_points, k) -> (batch_size, 256, num_points, k)
-        x4 = x.max(dim=-1, keepdim=False)[
-            0
-        ]  # (batch_size, 256, num_points, k) -> (batch_size, 256, num_points)
+        x = get_graph_feature(x3, k=self.k, device=self._device)
+        x = self.conv4(x)
+        x4 = x.max(dim=-1, keepdim=False)[0]
 
         return x4
 
@@ -252,7 +206,8 @@ class SorghumPartNetSemantic(pl.LightningModule):
         self.DGCNN_semantic_segmentor = DGCNNSemanticSegmentor(
             self.hparams["dgcnn_k"],
             input_dim=(
-                3 if "input_dim" not in self.hparams else self.hparams["input_dim"]
+                3 if "input_dim" not in self.hparams
+                else self.hparams["input_dim"]
             ),
             device=self._device
         ).double()
@@ -284,29 +239,32 @@ class SorghumPartNetSemantic(pl.LightningModule):
         return semantic_label_pred
 
     def configure_optimizers(self):
-        lr_lbmd = lambda _: max(
-            self.hparams["lr_decay"]
-            ** (
-                int(
-                    self.global_step
-                    * self.hparams["batch_size"]
-                    / self.hparams["decay_step"]
-                )
-            ),
-            self.lr_clip / self.hparams["lr"],
-        )
-        bn_lbmd = lambda _: max(
-            self.hparams["bn_momentum"]
-            * self.hparams["bnm_decay"]
-            ** (
-                int(
-                    self.global_step
-                    * self.hparams["batch_size"]
-                    / self.hparams["decay_step"]
-                )
-            ),
-            self.bnm_clip,
-        )
+        def lr_lbmd(_):
+            return max(
+                self.hparams["lr_decay"]
+                ** (
+                    int(
+                        self.global_step
+                        * self.hparams["batch_size"]
+                        / self.hparams["decay_step"]
+                    )
+                ),
+                self.lr_clip / self.hparams["lr"],
+            )
+
+        def bn_lbmd(_):
+            return max(
+                self.hparams["bn_momentum"]
+                * self.hparams["bnm_decay"]
+                ** (
+                    int(
+                        self.global_step
+                        * self.hparams["batch_size"]
+                        / self.hparams["decay_step"]
+                    )
+                ),
+                self.bnm_clip,
+            )
 
         optimizer = torch.optim.Adam(
             self.parameters(),
@@ -334,12 +292,17 @@ class SorghumPartNetSemantic(pl.LightningModule):
             )
 
         loader = DataLoader(
-            dataset, batch_size=self.hparams["batch_size"], num_workers=4, shuffle=shuff
+            dataset,
+            batch_size=self.hparams["batch_size"],
+            num_workers=4,
+            shuffle=shuff
         )
         return loader
 
     def train_dataloader(self):
-        return self._build_dataloader(ds_path=self.hparams["train_data"], shuff=True)
+        return self._build_dataloader(
+            ds_path=self.hparams["train_data"],
+            shuff=True)
 
     def training_step(self, batch, batch_idx):
         if "use_normals" not in self.hparams:
@@ -382,7 +345,9 @@ class SorghumPartNetSemantic(pl.LightningModule):
 
     # def log_pointcloud_image(self,)
     def val_dataloader(self):
-        return self._build_dataloader(ds_path=self.hparams["val_data"], shuff=False)
+        return self._build_dataloader(
+            ds_path=self.hparams["val_data"],
+            shuff=False)
 
     def validation_step(self, batch, batch_idx):
         if "use_normals" not in self.hparams:
@@ -395,9 +360,6 @@ class SorghumPartNetSemantic(pl.LightningModule):
         critirion = torch.nn.CrossEntropyLoss()
         semantic_label_loss = critirion(pred_semantic_label, semantic_label)
 
-        # semantic_label_acc = (
-        #     (torch.argmax(pred_semantic_label, dim=1) == semantic_label).float().mean()
-        # )
         metric_calculator = SemanticMetrics()
         semantic_label_acc = metric_calculator(
             torch.argmax(pred_semantic_label, dim=1), semantic_label
@@ -466,7 +428,8 @@ class SorghumPartNetSemantic(pl.LightningModule):
 
             metric_calculator = SemanticMetrics()
             acc = metric_calculator(
-                torch.tensor(pred_semantic_label_labels), torch.tensor(semantic_labels)
+                torch.tensor(pred_semantic_label_labels),
+                torch.tensor(semantic_labels)
             )
 
             fig = plt.figure(figsize=(15, 15))
@@ -493,14 +456,6 @@ class SorghumPartNetSemantic(pl.LightningModule):
             "pred_real_data", grid, self.trainer.current_epoch
         )
 
-        # self.log(
-        #     "test_real_acc",
-        #     torch.mean(accs),
-        #     on_step=False,
-        #     on_epoch=True,
-        #     prog_bar=False,
-        #     logger=True,
-        # )
         self.logger.experiment.add_scalar(
             "test_real_acc", torch.mean(accs), self.trainer.current_epoch
         )
@@ -533,7 +488,10 @@ class SorghumPartNetInstance(pl.LightningModule):
             device=self._device
         ).double()
 
-        if "loss_fn" in self.hparams and self.hparams["loss_fn"] == "knn_space_mean":
+        if (
+            "loss_fn" in self.hparams
+            and self.hparams["loss_fn"] == "knn_space_mean"
+        ):
             self.space_reqularizer_module = KNNSpaceRegularizer(
                 self.hparams["loss_fn_param"]
             )
@@ -574,29 +532,32 @@ class SorghumPartNetInstance(pl.LightningModule):
         return dgcnn_features
 
     def configure_optimizers(self):
-        lr_lbmd = lambda _: max(
-            self.hparams["lr_decay"]
-            ** (
-                int(
-                    self.global_step
-                    * self.hparams["batch_size"]
-                    / self.hparams["decay_step"]
-                )
-            ),
-            self.lr_clip / self.hparams["lr"],
-        )
-        bn_lbmd = lambda _: max(
-            self.hparams["bn_momentum"]
-            * self.hparams["bnm_decay"]
-            ** (
-                int(
-                    self.global_step
-                    * self.hparams["batch_size"]
-                    / self.hparams["decay_step"]
-                )
-            ),
-            self.bnm_clip,
-        )
+        def lr_lbmd(_):
+            return max(
+                self.hparams["lr_decay"]
+                ** (
+                    int(
+                        self.global_step
+                        * self.hparams["batch_size"]
+                        / self.hparams["decay_step"]
+                    )
+                ),
+                self.lr_clip / self.hparams["lr"],
+            )
+
+        def bn_lbmd(_):
+            return max(
+                self.hparams["bn_momentum"]
+                * self.hparams["bnm_decay"]
+                ** (
+                    int(
+                        self.global_step
+                        * self.hparams["batch_size"]
+                        / self.hparams["decay_step"]
+                    )
+                ),
+                self.bnm_clip,
+            )
 
         optimizer = torch.optim.Adam(
             self.parameters(),

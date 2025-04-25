@@ -1,8 +1,7 @@
-import torch
 import numpy as np
+import torch
 import torch.utils.data as data
 import h5py
-import random
 import os
 
 
@@ -32,7 +31,8 @@ class SorghumDataset(data.Dataset):
         plant_index = f["plant_index"][index]
         leaf_index = f["leaf_index"][index]
 
-        # Converting arbitrary and non-contigiouse plant IDs to contigiouse list of indices
+        # Converting arbitrary and non-contigiouse plant IDs to contiguous
+        # list of indices
         plant_ind = list(set(list(plant_index)))
         ind = list(range(0, len(plant_ind)))
         mapping = dict(zip(ind, plant_ind))
@@ -43,8 +43,10 @@ class SorghumDataset(data.Dataset):
 
         # creating semantic labeling using the guide above
         semantic_label = is_focal_plant.copy()
-        semantic_label[np.where((is_focal_plant == 0) & (ground_index == 1))] = 0
-        semantic_label[np.where((is_focal_plant == 0) & (ground_index == 0))] = 2
+        semantic_label[np.where((is_focal_plant == 0)
+                                & (ground_index == 1))] = 0
+        semantic_label[np.where((is_focal_plant == 0)
+                                & (ground_index == 0))] = 2
 
         f.close()
 
@@ -142,7 +144,9 @@ class SorghumDatasetWithNormals(data.Dataset):
 
         # perform data augmentation if semantic segmentation
         if self.is_semantic:
-            np_points, np_labels = self.semantic_transformations(np_points, np_labels)
+            np_points, np_labels = self.semantic_transformations(
+                np_points,
+                np_labels)
 
         # add noise to all points
         if self.std_coef > 0:
@@ -231,7 +235,8 @@ class PartNetDataset(data.Dataset):
         self.is_debug = debug
         if not os.path.exists(self.h5_filename):
             raise Exception(
-                "H5py file doesn't exist. Please make sure you are inputing correct values."
+                "H5py file doesn't exist. Please make sure you are inputing"
+                " correct values."
             )
         self.length = -1
 
@@ -269,7 +274,8 @@ class TreePartNetDataset(data.Dataset):
         self.is_debug = debug
         if not os.path.exists(self.h5_filename):
             raise Exception(
-                "H5py file doesn't exist. Please make sure you are inputing correct values."
+                "H5py file doesn't exist. Please make sure you are inputing"
+                " correct values."
             )
         self.length = -1
 
@@ -307,7 +313,8 @@ class TreePartNetOriginalDataset(data.Dataset):
         self.is_debug = debug
         if not os.path.exists(self.h5_filename):
             raise Exception(
-                "H5py file doesn't exist. Please make sure you are inputing correct values."
+                "H5py file doesn't exist. Please make sure you are inputing "
+                "correct values."
             )
         self.length = -1
 
@@ -362,7 +369,9 @@ class SorghumDatasetTPNFormat(data.Dataset):
             std_points = np.repeat(
                 np.expand_dims(np.std(points, 0), 0), points.shape[0], 0
             )
-            points += np.random.normal(0, std_points * self.std_coef, size=points.shape)
+            points += np.random.normal(0,
+                                       std_points * self.std_coef,
+                                       size=points.shape)
 
         # convert to torch
         points = torch.from_numpy(points).float()

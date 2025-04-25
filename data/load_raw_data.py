@@ -1,7 +1,9 @@
-import open3d as o3d
-import numpy as np
 import random
-from plyfile import PlyData, PlyElement
+
+import numpy as np
+import open3d as o3d
+from plyfile import PlyData
+
 from data.utils import *
 
 
@@ -10,7 +12,9 @@ def load_pcd_plyfile(path, index_to_use="leaf_index", down_sample_n=8000):
         with open(path, "rb") as f:
             plydata = PlyData.read(f)
             points = np.asarray(np.array(plydata.elements[0].data).tolist())
-            points_full = np.asarray(np.array(plydata.elements[0].data).tolist())
+            points_full = np.asarray(
+                np.array(plydata.elements[0].data).tolist()
+            )
 
             if down_sample_n is None:
                 down_sample_n = points_full.shape[0]
@@ -21,31 +25,31 @@ def load_pcd_plyfile(path, index_to_use="leaf_index", down_sample_n=8000):
             )
             points = points[downsample_indexes]
 
-            leaf_index = np.asarray(np.array(plydata.elements[2].data).tolist())[
-                downsample_indexes
-            ].squeeze()
-            leaf_part_index = np.asarray(np.array(plydata.elements[3].data).tolist())[
-                downsample_indexes
-            ].squeeze()
+            leaf_index = np.asarray(
+                np.array(plydata.elements[2].data).tolist()
+            )[downsample_indexes].squeeze()
+            leaf_part_index = np.asarray(
+                np.array(plydata.elements[3].data).tolist()
+            )[downsample_indexes].squeeze()
 
             if np.min(leaf_part_index) == 1:
                 leaf_part_index -= 1
 
-            is_focal_plant = np.asarray(np.array(plydata.elements[4].data).tolist())[
-                downsample_indexes
-            ].squeeze()
+            is_focal_plant = np.asarray(
+                np.array(plydata.elements[4].data).tolist()
+            )[downsample_indexes].squeeze()
 
             if len(plydata.elements) == 6:
-                plant_index = np.asarray(np.array(plydata.elements[5].data).tolist())[
-                    downsample_indexes
-                ].squeeze()
+                plant_index = np.asarray(
+                    np.array(plydata.elements[5].data).tolist()
+                )[downsample_indexes].squeeze()
             elif len(plydata.elements) == 7:
-                plant_index = np.asarray(np.array(plydata.elements[5].data).tolist())[
-                    downsample_indexes
-                ].squeeze()
-                ground_index = np.asarray(np.array(plydata.elements[6].data).tolist())[
-                    downsample_indexes
-                ].squeeze()
+                plant_index = np.asarray(
+                    np.array(plydata.elements[5].data).tolist()
+                )[downsample_indexes].squeeze()
+                ground_index = np.asarray(
+                    np.array(plydata.elements[6].data).tolist()
+                )[downsample_indexes].squeeze()
             else:
                 plant_index = None
                 ground_index = None
@@ -62,7 +66,9 @@ def load_pcd_plyfile(path, index_to_use="leaf_index", down_sample_n=8000):
                 for j in range(min_leaf_part_index, max_leaf_part_index + 1):
                     if not np.any((leaf_index == i) & (leaf_part_index == j)):
                         continue
-                    leaf_part_full_index[(leaf_index == i) & (leaf_part_index == j)] = k
+                    leaf_part_full_index[
+                        (leaf_index == i) & (leaf_part_index == j)
+                    ] = k
                     k += 1
 
         return {
@@ -86,10 +92,18 @@ def load_pcd_plyfile_new_approach(path, is_instance, down_sample_n=8000):
         with open(path, "rb") as f:
             plydata = PlyData.read(f)
             points = np.asarray(np.array(plydata.elements[0].data).tolist())
-            points_full = np.asarray(np.array(plydata.elements[0].data).tolist())
-            leaf_index = np.asarray(np.array(plydata.elements[2].data).tolist())
-            ground_index = np.asarray(np.array(plydata.elements[6].data).tolist())
-            is_focal_plant = np.asarray(np.array(plydata.elements[4].data).tolist())
+            points_full = np.asarray(
+                np.array(plydata.elements[0].data).tolist()
+            )
+            leaf_index = np.asarray(
+                np.array(plydata.elements[2].data).tolist()
+            )
+            ground_index = np.asarray(
+                np.array(plydata.elements[6].data).tolist()
+            )
+            is_focal_plant = np.asarray(
+                np.array(plydata.elements[4].data).tolist()
+            )
 
             if down_sample_n is None:
                 down_sample_n = points_full.shape[0]
@@ -162,18 +176,20 @@ def load_pcd_plyfile_new_approach(path, is_instance, down_sample_n=8000):
 
 
 def load_ply_file_points(path, n_points=8000, full_points=50000):
-    '''
+    """
     points : np array with min (full_points, points.shape[0]) points
     down_sampled_points : returns np array with min (n_points, points.shape[0]) points
     normals : estimated normals, same size as down_sampled_points
-    '''
+    """
     pcd = o3d.io.read_point_cloud(path)
 
     # R = pcd.get_rotation_matrix_from_xyz((-np.pi / 2, 0, 0))
     # pcd = pcd.rotate(R, center=pcd.get_center())
 
     pcd.estimate_normals(
-        search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.1, max_nn=30)
+        search_param=o3d.geometry.KDTreeSearchParamHybrid(
+            radius=0.1, max_nn=30
+        )
     )
     normals = np.asarray(pcd.normals)
 
@@ -213,7 +229,9 @@ def load_real_ply_with_labels(path, point_threshold=100000):
     with open(path, "rb") as f:
         plydata = PlyData.read(f)
         points = np.asarray(np.array(plydata.elements[0].data).tolist())
-        leaf_index = np.asarray(np.array(plydata.elements[1].data).tolist()).squeeze()
+        leaf_index = np.asarray(
+            np.array(plydata.elements[1].data).tolist()
+        ).squeeze()
         semantic_index = np.asarray(
             np.array(plydata.elements[2].data).tolist()
         ).squeeze()

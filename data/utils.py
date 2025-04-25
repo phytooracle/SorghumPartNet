@@ -1,13 +1,13 @@
-import torch
-import numpy as np
-import random
 import colorsys
+import random
+import sys
+
+import numpy as np
 import open3d as o3d
 from scipy.spatial.distance import cdist
 
 
 def distinct_colors(n=200):
-
     colors = []
     for i in np.arange(0, 1, 1.0 / n):
         hue = i
@@ -23,8 +23,9 @@ def distinct_colors(n=200):
 
 def rgb_dec_to_hex(tup):
     """
-    Given input in [0,1] x 3 indicating RGB color, returns integer hex representation. For use with
-    k3d visualization which requires this particular color format.
+    Given input in [0,1] x 3 indicating RGB color, returns integer hex
+    representation. For use with o3d visualization which requires this
+    particular color format.
 
     ex, (1, 1, 1) -> 255255255
     """
