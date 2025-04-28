@@ -1,0 +1,7 @@
+FROM phytooracle/sorghumpartnet:base
+
+WORKDIR /app
+
+# Install development dependencies
+
+CMD ["bash"]
