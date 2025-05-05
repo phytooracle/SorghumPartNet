@@ -126,7 +126,9 @@ def get_args():
     return parser.parse_args()
 
 
-def predict_downsampled(points, semantic_model, instance_model, method, dist=5):
+def predict_downsampled(
+    points, semantic_model, instance_model, method, dist=5
+):
     """Predict the downsampled point cloud."""
     if (
         "use_normals" in semantic_model.hparams
@@ -155,21 +157,29 @@ def predict_downsampled(points, semantic_model, instance_model, method, dist=5):
         )
     else:
         pred_instance_features = instance_model(
-            torch.unsqueeze(instance_points[:, :3], dim=0).to(instance_model.device)
+            torch.unsqueeze(instance_points[:, :3], dim=0).to(
+                instance_model.device
+            )
         )
 
     if method == "dbscan":
-        pred_instance_features = pred_instance_features.cpu().detach().numpy().squeeze()
+        pred_instance_features = (
+            pred_instance_features.cpu().detach().numpy().squeeze()
+        )
         clustering = DBSCAN(eps=1, min_samples=10).fit(pred_instance_features)
         pred_final_cluster = clustering.labels_
     else:
-        distance_pred = torch.cdist(pred_instance_features, pred_instance_features)
+        distance_pred = torch.cdist(
+            pred_instance_features, pred_instance_features
+        )
         distance_pred = distance_pred.cpu().detach().numpy().T
         distance_pred = np.squeeze(distance_pred)
 
         distance_pred = 1 * (distance_pred < dist)
 
-        pred_final_cluster = np.zeros((distance_pred.shape[0])).astype("uint16")
+        pred_final_cluster = np.zeros((distance_pred.shape[0])).astype(
+            "uint16"
+        )
         next_label = 1
 
         for i in range(distance_pred.shape[0]):
@@ -195,7 +205,12 @@ def predict_downsampled(points, semantic_model, instance_model, method, dist=5):
         instance_points[:, :3], pred_final_cluster
     )
 
-    return ply_semantic, ply_instance, pred_semantic_label_labels, pred_final_cluster
+    return (
+        ply_semantic,
+        ply_instance,
+        pred_semantic_label_labels,
+        pred_final_cluster,
+    )
 
 
 def pred_full_size(
@@ -216,7 +231,10 @@ def pred_full_size(
     full_ind, down_ind = torch.where(distances == 0)
 
     semantic_full = torch.full(
-        (full_points.shape[0],), -1, dtype=downsampled_semantic.dtype, device=device
+        (full_points.shape[0],),
+        -1,
+        dtype=downsampled_semantic.dtype,
+        device=device,
     )
     semantic_full[full_ind] = downsampled_semantic[down_ind]
 
@@ -229,7 +247,9 @@ def pred_full_size(
             semantic_full[i] = mode
 
     semantic_ply = create_ply_pcd_from_points_with_labels(
-        full_points.cpu().numpy(), semantic_full.cpu().numpy(), is_semantic=True
+        full_points.cpu().numpy(),
+        semantic_full.cpu().numpy(),
+        is_semantic=True,
     )
 
     downsampled_focal_points = downsampled_points[downsampled_semantic == 1]
@@ -239,7 +259,10 @@ def pred_full_size(
     full_ind, down_ind = torch.where(distances == 0)
 
     instance_full = torch.full(
-        (focal_points.shape[0],), -1, dtype=downsampled_instance.dtype, device=device
+        (focal_points.shape[0],),
+        -1,
+        dtype=downsampled_instance.dtype,
+        device=device,
     )
     instance_full[full_ind] = downsampled_instance[down_ind]
 
@@ -254,8 +277,6 @@ def pred_full_size(
     instance_ply = create_ply_pcd_from_points_with_labels(
         focal_points.cpu().numpy(), instance_full.cpu().numpy()
     )
-
-    # TODO open3d tensor io can probably save directly from the tensors. not sure if it's faster.
 
     return semantic_ply, instance_ply
 
@@ -283,7 +304,9 @@ def load_model(args, model_name, version, device):
         version = sorted(versions)[-1].split("_")[-1]
 
     path_all_checkpoints = os.path.join(
-        f"{args.model}", model_name, f"lightning_logs/version_{version}/checkpoints"
+        f"{args.model}",
+        model_name,
+        f"lightning_logs/version_{version}/checkpoints",
     )
     path = sorted(os.listdir(path_all_checkpoints))[-1]
     print(f"{model_name} using version ", version, " ", path)
@@ -315,7 +338,9 @@ def worker(args, cpu_id, device, ids):
     for id in ids:
 
         base_path = os.path.join(args.path, id)
-        path_to_pcd = os.path.join(base_path, "combined_multiway_registered.ply")
+        path_to_pcd = os.path.join(
+            base_path, "combined_multiway_registered.ply"
+        )
 
         # check if already processed
         if len(os.listdir(base_path)) > 1:
@@ -364,13 +389,19 @@ def worker(args, cpu_id, device, ids):
         # print(':: Saving the point clouds...')
         if args.save_all:
             save_predicted(
-                downsampled_semantic_pcd, os.path.join(base_path, "semantic.ply")
+                downsampled_semantic_pcd,
+                os.path.join(base_path, "semantic.ply"),
             )
             save_predicted(
-                downsampled_instance_pcd, os.path.join(base_path, "instance.ply")
+                downsampled_instance_pcd,
+                os.path.join(base_path, "instance.ply"),
             )
-        save_predicted(semantic_pcd, os.path.join(base_path, "semantic_full.ply"))
-        save_predicted(instance_pcd, os.path.join(base_path, "instance_full.ply"))
+        save_predicted(
+            semantic_pcd, os.path.join(base_path, "semantic_full.ply")
+        )
+        save_predicted(
+            instance_pcd, os.path.join(base_path, "instance_full.ply")
+        )
 
 
 if __name__ == "__main__":
