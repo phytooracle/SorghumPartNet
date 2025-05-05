@@ -1,1 +1,7 @@
-FROM plantsegnet:base
+FROM phytooracle/plantsegnet:base
+
+WORKDIR /opt
+
+COPY . /opt
+
+ENTRYPOINT ["python3", "hpc.py"]

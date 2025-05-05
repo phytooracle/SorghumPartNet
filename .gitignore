@@ -1,3 +1,6 @@
+# project output
+*.log
+
 # VS Code
 .vscode/
 
