@@ -41,7 +41,7 @@ def get_args():
         metavar="semantic_version",
         required=False,
         type=int,
-        default=-1,
+        default=9,
     )
 
     parser.add_argument(
@@ -52,7 +52,7 @@ def get_args():
         metavar="instance_version",
         required=False,
         type=int,
-        default=-1,
+        default=10,
     )
 
     parser.add_argument(
@@ -300,7 +300,7 @@ def load_model_chkpoint(model, path, device):
 def load_model(args, model_name, version, device):
     """Load the model from a checkpoint."""
     if version == -1:
-        versions = os.listdir(os.path.join(f"{args.model}", model_name))
+        versions = os.listdir(os.path.join(f"{args.model}", model_name, "lightning_logs"))
         version = sorted(versions)[-1].split("_")[-1]
 
     path_all_checkpoints = os.path.join(
