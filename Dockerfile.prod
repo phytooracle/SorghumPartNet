@@ -1,4 +1,4 @@
-FROM phytooracle/plantsegnet:base
+FROM phytooracle/sorghumpartnet:base
 
 WORKDIR /opt
 
