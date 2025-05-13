@@ -100,7 +100,7 @@ def get_args():
         metavar="path",
         required=True,
         type=str,
-    )  ### ${CWD}/individual_plants_out/segmentation_pointclouds/${PLANT_NAME}/combined_multiway_registered.ply
+    )  ### ${CWD}/individual_plants_out/segmentation_pointclouds
 
     parser.add_argument(
         "-o",
