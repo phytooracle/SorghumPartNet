@@ -8,6 +8,7 @@ Arguments are inherited fromm hpc.py:
 * Required
   * -m, --model | Path to the folder containing the models (semantic and instance)
   * -p, --path | Path to the data folder
+  * -o, --output | Path to the output destination
 * Optional
   * -s, --semantic_version | The version of the semantic model (default: latest)
   * -i, --instance_version | The version of the instance model (default: latest)
@@ -21,7 +22,7 @@ Arguments are inherited fromm hpc.py:
 
 When used as part of PhytoOracle automation, it would be appropriate to use a command within the YAML as follows:
 ```
-singularity run -B $(pwd):/mnt --pwd /mnt ${CWD}/SorghumPartNet.simg -p ${CWD}/individual_plants_out/segmentation_pointclouds -m /groups/dukepauli/shared/models/PlantSegNet/ 
+singularity run -B $(pwd):/mnt --pwd /mnt ${CWD}/SorghumPartNet.simg -p ${CWD}/individual_plants_out/segmentation_pointclouds -p ${CWD}/individual_plants_out/SorghumPartNet -m /groups/dukepauli/shared/models/PlantSegNet/ 
 ```
 
 ## Development
