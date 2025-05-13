@@ -100,7 +100,16 @@ def get_args():
         metavar="path",
         required=True,
         type=str,
-    )  ### Point to the segmentation_pointclouds directory
+    )  ### ${CWD}/individual_plants_out/segmentation_pointclouds/${PLANT_NAME}/combined_multiway_registered.ply
+
+    parser.add_argument(
+        "-o",
+        "--output",
+        help="Path to the output directory.",
+        metavar="output",
+        required=True,
+        type=str,
+    ) ### ${CWD}/individual_plants_out/SorghumPartNet
 
     parser.add_argument(
         "-t",
@@ -390,17 +399,17 @@ def worker(args, cpu_id, device, ids):
         if args.save_all:
             save_predicted(
                 downsampled_semantic_pcd,
-                os.path.join(base_path, "semantic.ply"),
+                os.path.join(args.output, id, f"{id}_semantic_downsampled.ply"),
             )
             save_predicted(
                 downsampled_instance_pcd,
-                os.path.join(base_path, "instance.ply"),
+                os.path.join(args.output, id, f"{id}_instance_downsampled.ply"),
             )
         save_predicted(
-            semantic_pcd, os.path.join(base_path, "semantic_full.ply")
+            semantic_pcd, os.path.join(args.output, id, f"{id}_semantic_full.ply")
         )
         save_predicted(
-            instance_pcd, os.path.join(base_path, "instance_full.ply")
+            instance_pcd, os.path.join(args.output, id, f"{id}_instance_full.ply")
         )
 
 
