@@ -4,4 +4,4 @@ WORKDIR /opt
 
 COPY . /opt
 
-ENTRYPOINT ["python3", "hpc.py"]
+ENTRYPOINT ["python3", "/opt/src/hpc.py"]
