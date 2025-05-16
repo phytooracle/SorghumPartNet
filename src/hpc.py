@@ -355,7 +355,7 @@ def worker(args, cpu_id, device, ids):
         if len(os.listdir(base_path)) > 1:
             continue
 
-        print(f':: Opening {path_to_pcd}')
+        # print(f':: Opening {path_to_pcd}')
         try:
             points_full, points, normals = load_ply_file_points(
                 path_to_pcd, n_points=8000, full_points=8000
@@ -372,7 +372,7 @@ def worker(args, cpu_id, device, ids):
         # print(f":: Point cloud {path_to_pcd} with {points_full.shape[0]} points loaded!")
 
         try:
-            print(':: Running predict_downsampled...')
+            # print(':: Running predict_downsampled...')
             (
                 downsampled_semantic_pcd,
                 downsampled_instance_pcd,
@@ -382,7 +382,7 @@ def worker(args, cpu_id, device, ids):
                 points, semantic_model, instance_model, args.cluster_method
             )
 
-            print(':: Running pred_full_size...')
+            # print(':: Running pred_full_size...')
             semantic_pcd, instance_pcd = pred_full_size(
                 points_full,
                 points[:, :3],
@@ -397,7 +397,7 @@ def worker(args, cpu_id, device, ids):
         
         os.makedirs(os.path.join(args.output, id), exist_ok=True)
 
-        print(':: Saving the point clouds...')
+        # print(':: Saving the point clouds...')
         if args.save_all:
             save_predicted(
                 downsampled_semantic_pcd,
