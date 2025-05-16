@@ -1,6 +1,8 @@
 FROM phytooracle/sorghumpartnet:base
 
-WORKDIR /app
+WORKDIR /opt
+
+COPY . /opt
 
 # Install development dependencies
 
