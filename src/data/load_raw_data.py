@@ -177,36 +177,44 @@ def load_pcd_plyfile_new_approach(path, is_instance, down_sample_n=8000):
 
 def load_ply_file_points(path, n_points=8000, full_points=50000):
     """
-    points : np array with min (full_points, points.shape[0]) points
-    down_sampled_points : returns np array with min (n_points, points.shape[0]) points
-    normals : estimated normals, same size as down_sampled_points
+    Loads a point cloud, downsamples it, and computes normals only for the downsampled points
+    using the full point cloud as the neighborhood for normal estimation.
     """
     pcd = o3d.io.read_point_cloud(path)
+    all_points = np.asarray(pcd.points)
 
-    # R = pcd.get_rotation_matrix_from_xyz((-np.pi / 2, 0, 0))
-    # pcd = pcd.rotate(R, center=pcd.get_center())
-
-    pcd.estimate_normals(
-        search_param=o3d.geometry.KDTreeSearchParamHybrid(
-            radius=0.1, max_nn=30
-        )
-    )
-    normals = np.asarray(pcd.normals)
-
-    points = np.array(pcd.points)
-
+    # First downsampling
     first_down_indexes = random.sample(
-        np.arange(0, points.shape[0]).tolist(),
-        min(full_points, points.shape[0]),
+        range(all_points.shape[0]),
+        min(full_points, all_points.shape[0])
     )
-    points = points[first_down_indexes]
+    points = all_points[first_down_indexes]
 
+    # Second downsampling
     downsample_indexes = random.sample(
-        np.arange(0, points.shape[0]).tolist(),
-        min(n_points, points.shape[0]),
+        range(points.shape[0]),
+        min(n_points, points.shape[0])
     )
     down_sampled_points = points[downsample_indexes]
-    normals = normals[downsample_indexes]
+
+    # Build KDTree on full point cloud
+    full_pcd = o3d.geometry.PointCloud()
+    full_pcd.points = o3d.utility.Vector3dVector(all_points)
+    kdtree = o3d.geometry.KDTreeFlann(full_pcd)
+
+    # Estimate normals for downsampled points using full cloud as neighborhood
+    normals = []
+    for point in down_sampled_points:
+        [_, idx, _] = kdtree.search_hybrid_vector_3d(point, radius=0.1, max_nn=30)
+        if len(idx) < 3:
+            normals.append([0.0, 0.0, 0.0])
+            continue
+        neighbors = np.asarray(full_pcd.points)[idx]
+        cov = np.cov(neighbors.T)
+        eigvals, eigvecs = np.linalg.eigh(cov)
+        normal = eigvecs[:, np.argmin(eigvals)]
+        normals.append(normal)
+    normals = np.array(normals)
 
     return points, down_sampled_points, normals
 
