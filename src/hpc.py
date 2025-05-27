@@ -425,7 +425,7 @@ if __name__ == "__main__":
     num_gpus = torch.cuda.device_count()
 
     ids = np.asarray(os.listdir(args.path))
-    split_ids = np.split(ids, num_gpus)
+    split_ids = np.array_split(ids, num_gpus)
 
     assignments = [
         (i, torch.device(f"cuda:{i}"), split_ids[i]) for i in range(num_gpus)
